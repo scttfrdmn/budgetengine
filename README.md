@@ -20,7 +20,10 @@ hitting zero means done, unless a new funding source is added.
 State is **event-sourced** from two ordered logs, so it is derived and reproducible — two hosts that
 fold the same logs compute identical state:
 
-- **`SpendEvent`** — actual, already-attributed cost line items (the actuals ledger).
+- **`SpendEvent`** — actual, already-attributed cost line items (the actuals ledger). Carries the
+  authoritative `Amount` delta plus optional line-item metadata (`ResourceID`, `Compute`/`Storage`/
+  `Network`) for per-resource breakdown; the fold uses only `Amount`, so the metadata is additive and
+  backward-compatible.
 - **`PlanEvent`** — plan mutations (source added/expired, window extended, allocation changed, freeze).
 
 The nominal capacity curve is piecewise-constant and may be disjoint (a funding gap → rate 0);

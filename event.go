@@ -9,12 +9,25 @@ import "time"
 // Amount is USD. Positive amounts are spend; a correction/reversal is a negative Amount (the fold
 // floors cumulative spend at zero, so a reversal can only give back money that was spent). At is the
 // accrual time (when the cost was incurred), not ingest time — the fold orders by it.
+//
+// The optional line-item fields (ResourceID, Compute/Storage/Network) are host-supplied *metadata*
+// for per-resource breakdown and reporting. They are additive and backward-compatible: the fold and
+// CheckLaunch use ONLY Amount (the authoritative delta), so zero-value line items on older events
+// fold exactly as before. A host that doesn't populate them loses only breakdown detail, never
+// correctness. Amount SHOULD equal Compute+Storage+Network when the components are provided, but the
+// engine does not enforce it — Amount remains authoritative.
 type SpendEvent struct {
 	ID           string    // idempotency key; replaying the same ID twice is a no-op
 	AllocationID string    // which allocation this spend draws from
-	Amount       float64   // USD; >0 spend, <0 correction/reversal
+	Amount       float64   // USD; >0 spend, <0 correction/reversal — the authoritative delta
 	At           time.Time // accrual time
 	Source       string    // opaque provenance (CUR line id, meter name, instance id, …)
+
+	// Optional line-item metadata (v0.2.0+); zero values are valid and ignored by the fold.
+	ResourceID string  `json:",omitempty"` // e.g. instance/volume id this cost is attributed to
+	Compute    float64 `json:",omitempty"` // USD portion attributable to compute
+	Storage    float64 `json:",omitempty"` // USD portion attributable to storage
+	Network    float64 `json:",omitempty"` // USD portion attributable to network/egress
 }
 
 // PlanEventKind is the discriminant of the plan-mutation log. PlanEvent is a tagged struct (not a Go
