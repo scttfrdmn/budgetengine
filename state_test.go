@@ -27,6 +27,29 @@ func allocChanged(seq uint64, id string, amt float64) PlanEvent {
 		Allocation: &Allocation{ID: id, Amount: amt}}
 }
 
+// AvailableBetween integrates the curve over an arbitrary [from,to) span; AvailableToDate is the
+// special case starting at the curve's beginning.
+func TestCapacityCurve_AvailableBetween(t *testing.T) {
+	start, end := day(2026, 1, 1), day(2027, 1, 1) // $36,500 over 365 days → $100/day
+	curve := CapacityCurve{Segments: []CapacitySegment{
+		{From: start, To: end, Rate: 36_500.0 / (365 * 86400)},
+	}}
+	// A 100-day forward span ≈ $10,000.
+	got := curve.AvailableBetween(day(2026, 4, 11), day(2026, 7, 20))
+	if !approx(got, 10_000, 5.0) {
+		t.Fatalf("AvailableBetween(100 days) = %.2f, want ~10000", got)
+	}
+	// Clipped to the curve: a span reaching past the end only counts covered time.
+	full := curve.AvailableBetween(start, day(2028, 1, 1))
+	if !approx(full, 36_500, 1.0) {
+		t.Fatalf("AvailableBetween(whole curve, over-extended) = %.2f, want ~36500", full)
+	}
+	// Empty / inverted span → 0.
+	if v := curve.AvailableBetween(end, start); v != 0 {
+		t.Fatalf("inverted span should be 0, got %.2f", v)
+	}
+}
+
 func TestFold_SingleSource_AvailableToDate(t *testing.T) {
 	start, end := day(2026, 1, 1), day(2027, 1, 1) // 365 days, $36,500 → $100/day
 	plan := []PlanEvent{

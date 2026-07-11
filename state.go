@@ -55,6 +55,27 @@ func (c CapacityCurve) AvailableToDate(now time.Time) float64 {
 	return total
 }
 
+// AvailableBetween integrates the curve over [from, to): the nominal budget that becomes spendable in
+// that span under even pacing. Generalizes AvailableToDate (which is AvailableBetween(curveStart, now)).
+// Used by BankAndReserve to read the go-forward nominal rate. Exact piecewise-constant sum.
+func (c CapacityCurve) AvailableBetween(from, to time.Time) float64 {
+	var total float64
+	for _, s := range c.Segments {
+		lo := s.From
+		if lo.Before(from) {
+			lo = from
+		}
+		hi := s.To
+		if hi.After(to) {
+			hi = to
+		}
+		if hi.After(lo) {
+			total += s.Rate * hi.Sub(lo).Seconds()
+		}
+	}
+	return total
+}
+
 // AllocationState is the folded state for one allocation at a point in time.
 type AllocationState struct {
 	Alloc              Allocation
